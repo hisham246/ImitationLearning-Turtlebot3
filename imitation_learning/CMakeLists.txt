@@ -173,9 +173,10 @@ include_directories(
 # )
 
 catkin_install_python(PROGRAMS
-   scripts/turtlebot3_teleop_key
-   scripts/learner
-   scripts/reset_robot_pos
+   scripts/turtlebot3_teleop_key.py
+   scripts/learner.py
+   scripts/reset_robot_pos.py
+   scripts/daglearner.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
