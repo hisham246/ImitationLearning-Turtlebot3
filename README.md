@@ -22,7 +22,7 @@ roslaunch turtlebot3_gazebo turtlebot3_house.launch
 ```
 * Run the `reset_robot_pos` node to set the robot's position to the start at room A
 ```
-rosrun imitation_learning reset_robot_pos
+rosrun imitation_learning reset_robot_pos.py
 ```
 * Launch the ROS Navigation Stack to initialize the expert
 ```
@@ -31,7 +31,7 @@ roslaunch turtlebot3_navigation turtlebot3_navigation.launch map_file:=$HOME/cat
 * Run either DAgger (`daglearner` node) or supervised learning (`learner` node) algorithms in a terminal with the virtual environment
 ```
 source venv/bin/activate
-rosrun imitation_learning daglearner
+rosrun imitation_learning daglearner.py
 ```
 * Run the teleop_key to change between different modes
 ```
@@ -43,7 +43,7 @@ For both learner and daglearner, press ’1’ in the terminal running `turtlebo
 To evaluate a single policy, run the `policyexec` node after running `reset_robot_pos`.
 ```
 source venv/bin/activate
-rosrun imitation_learning policyexec
+rosrun imitation_learning policyexec.py
 ```
 The robot will start moving once the program starts and resets at the goal position, followed by the program quitting itself. An trained model (best_model.pt) has been included for testing after setting up. It was trained using DAgger with 20 demonstrations.
 
