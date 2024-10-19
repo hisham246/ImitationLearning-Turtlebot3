@@ -35,7 +35,7 @@ rosrun imitation_learning daglearner.py
 ```
 * Run the teleop_key to change between different modes
 ```
-rosrun imitation_learning turtlebot3_teleop_key
+rosrun imitation_learning turtlebot3_teleop_key.py
 ```
 For both learner and daglearner, press ’1’ in the terminal running `turtlebot3_teleop_key` to start collecting data. The robot will start moving to the goal position. Once the robot reaches the goal position, `learner` will reset the robot’s pose to the start and begin the next demonstration immediately. Contrarily, `daglearner` will reset the robot pose, train the neural network policy, then start the next demonstration. This process will repeat until it is stopped manually by quitting the program. For `learner`, press ’2’ after collecting enough demonstrations to train the neural network. Press ’3’ to switch to EXECUTE mode.
 
