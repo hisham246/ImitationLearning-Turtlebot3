@@ -22,20 +22,20 @@ roslaunch turtlebot3_gazebo turtlebot3_house.launch
 ```
 * Run the `reset_robot_pos` node to set the robot's position to the start at room A
 ```
-rosrun imitation_learning reset_robot_pos
+rosrun imitation_learning reset_robot_pos.py
 ```
 * Launch the ROS Navigation Stack to initialize the expert
 ```
-roslaunch turtlebot3_navigation turtlebot3_navigation.launch map_file:=$HOME/catkin_ws/src/ImitationLearning_Turtlebot3/imitation_learning/house_map.yaml
+roslaunch turtlebot3_navigation turtlebot3_navigation.launch
 ```
 * Run either DAgger (`daglearner` node) or supervised learning (`learner` node) algorithms in a terminal with the virtual environment
 ```
 source venv/bin/activate
-rosrun imitation_learning daglearner
+rosrun imitation_learning daglearner.py
 ```
 * Run the teleop_key to change between different modes
 ```
-rosrun imitation_learning turtlebot3_teleop_key
+rosrun imitation_learning turtlebot3_teleop_key.py
 ```
 For both learner and daglearner, press ’1’ in the terminal running `turtlebot3_teleop_key` to start collecting data. The robot will start moving to the goal position. Once the robot reaches the goal position, `learner` will reset the robot’s pose to the start and begin the next demonstration immediately. Contrarily, `daglearner` will reset the robot pose, train the neural network policy, then start the next demonstration. This process will repeat until it is stopped manually by quitting the program. For `learner`, press ’2’ after collecting enough demonstrations to train the neural network. Press ’3’ to switch to EXECUTE mode.
 
@@ -43,7 +43,7 @@ For both learner and daglearner, press ’1’ in the terminal running `turtlebo
 To evaluate a single policy, run the `policyexec` node after running `reset_robot_pos`.
 ```
 source venv/bin/activate
-rosrun imitation_learning policyexec
+rosrun imitation_learning policyexec.py
 ```
 The robot will start moving once the program starts and resets at the goal position, followed by the program quitting itself. An trained model (best_model.pt) has been included for testing after setting up. It was trained using DAgger with 20 demonstrations.
 
