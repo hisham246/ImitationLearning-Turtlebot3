@@ -176,6 +176,9 @@ catkin_install_python(PROGRAMS
    scripts/turtlebot3_teleop_key
    scripts/learner
    scripts/reset_robot_pos
+   scripts/daglearner
+   scripts/diffusion_env
+   scripts/diffusion_policy
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

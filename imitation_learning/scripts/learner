@@ -25,6 +25,9 @@ import os
 from rospkg import RosPack
 import random
 
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
+
 from model_il import ImitationNet
 import model_il
 import torch

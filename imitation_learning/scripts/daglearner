@@ -141,8 +141,8 @@ class Dagger():
 
 	def collect(self):
 		# Load model again
-		if os.path.exists(self.model_dir + 'model.pt'):
-			self.model.load(self.model_dir + 'model.pt')
+		if os.path.exists(self.model_dir + 'dagger/model.pt'):
+			self.model.load(self.model_dir + 'dagger/model.pt')
 		self.model = self.model.to(self.device)
 		self.model.eval()
 
