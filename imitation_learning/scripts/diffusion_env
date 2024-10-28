@@ -82,36 +82,36 @@ class TurtleBot3Env(gym.Env):
         # Return observation without rewards or done signals
         return np.stack(self.obs_deque), {}, False, {}
 
-    def render(self, mode='human'):
-        pass  # Add visualization if needed
+    # def render(self, mode='human'):
+    #     pass  # Add visualization if needed
 
-    def close(self):
-        pass
+    # def close(self):
+    #     pass
 
     def seed(self, seed=None):
         np.random.seed(seed)
 
-def test_environment():
-    # Create the environment
-    env = TurtleBot3Env(obs_horizon=2, action_horizon=8)
-    print(env)
+# def test_environment():
+#     # Create the environment
+#     env = TurtleBot3Env(obs_horizon=2, action_horizon=8)
+#     print(env)
 
-    # Reset the environment and print initial observation
-    obs = env.reset()
-    print("Initial observation shape:", obs.shape)
-    print("Initial observation:", obs)
+#     # Reset the environment and print initial observation
+#     obs = env.reset()
+#     print("Initial observation shape:", obs.shape)
+#     print("Initial observation:", obs)
 
-    # Generate random actions within the action space
-    for i in range(1):  # Run for 5 iterations
-        actions = env.action_space.sample()
-        print(f"\nStep {i+1}: Actions to be taken:", actions)
+#     # Generate random actions within the action space
+#     for i in range(1):  # Run for 5 iterations
+#         actions = env.action_space.sample()
+#         print(f"\nStep {i+1}: Actions to be taken:", actions)
 
-        # Execute the step with the generated actions
-        new_obs, _, _, _ = env.step(actions)
+#         # Execute the step with the generated actions
+#         new_obs, _, _, _ = env.step(actions)
         
-        # Print the resulting observations
-        print("New observation shape:", new_obs.shape)
-        print("New observation:", new_obs)
+#         # Print the resulting observations
+#         print("New observation shape:", new_obs.shape)
+#         print("New observation:", new_obs)
 
-if __name__ == "__main__":
-    test_environment()
+# if __name__ == "__main__":
+#     test_environment()

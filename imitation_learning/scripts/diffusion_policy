@@ -1,55 +1,122 @@
 #!/usr/bin/env python
 
-from typing import Tuple, Sequence, Dict, Union, Optional
 import numpy as np
-import math
 import torch
 import torch.nn as nn
 import collections
-import zarr
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 from tqdm.auto import tqdm
-
+import rospy
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from sensor_msgs.msg import LaserScan
 import gym
 from gym import spaces
-from huggingface_hub.utils import IGNORE_GIT_FOLDER_PATTERNS
 
-from utils import *
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
 
-# dataset
-class TurtleBot3StateDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset_path,
-                 pred_horizon, obs_horizon, action_horizon):
+import utils
+import unet
 
-        # read from zarr dataset
-        dataset_root = zarr.open(dataset_path, 'r')
-        # All demonstration episodes are concatenated in the first dimension N
-        train_data = {
-            # (N, action_dim)
-            'action': dataset_root['data']['action'][:],
-            # (N, obs_dim)
-            'obs': dataset_root['data']['state'][:]
-        }
-        # Marks one-past the last index for each episode
-        episode_ends = dataset_root['meta']['episode_ends'][:]
+class TurtleBot3Env(gym.Env):
+    '''
+    This class defines the Gym environment for the Turtlebot3 navigation using diffusion policy.
+    '''
+    def __init__(self, obs_horizon=2, action_horizon=8):
+        super(TurtleBot3Env, self).__init__()
 
-        # compute start and end of each state-action sequence
-        # also handles padding
-        indices = create_sample_indices(
-            episode_ends=episode_ends,
+        rospy.init_node('turtlebot3_diffusion_env', anonymous=True)
+
+        # ROS subscribers
+        rospy.Subscriber('/scan', LaserScan, self._laser_callback)
+        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._pose_callback)
+        
+        # ROS publisher
+        self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+
+        # Observation and action space
+        obs_dim = 363  # 360 laser scans + 3 pose (x, y, theta)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(obs_horizon, obs_dim), dtype=np.float32)
+
+        action_dim = 2  # linear and angular velocities
+        self.action_space = spaces.Box(low=-1, high=1, shape=(action_horizon, action_dim), dtype=np.float32)
+
+        # Parameters
+        self.obs_horizon = obs_horizon
+        self.action_horizon = action_horizon
+
+        # Internal state
+        self.laser_data = np.zeros(360)
+        self.pose = np.zeros(3)  # [x, y, theta]
+        self.obs_deque = collections.deque(maxlen=obs_horizon)
+
+    def _laser_callback(self, data):
+        ranges = np.array(data.ranges)
+        ranges[np.isinf(ranges)] = 3.5  # Replace inf with max range
+        self.laser_data = ranges
+
+    def _pose_callback(self, data):
+        pos = data.pose.pose.position
+        ori = data.pose.pose.orientation
+        theta = 2 * np.arctan2(ori.z, ori.w)  # Convert quaternion to yaw
+        self.pose = [pos.x, pos.y, theta]
+
+    def reset(self):
+        # Reset environment (e.g., using a ROS service for simulation)
+        self.laser_data = np.zeros(360)
+        self.pose = np.zeros(3)
+        self.obs_deque.clear()
+
+        # Fill observation deque with initial observations
+        for _ in range(self.obs_horizon):
+            self.obs_deque.append(self._get_obs())
+
+        return np.stack(self.obs_deque)
+
+    def _get_obs(self):
+        obs = np.concatenate([self.laser_data, self.pose])
+        return obs
+
+    def step(self, actions):
+        # Execute a series of actions in the environment
+        for action in actions:
+            cmd_vel = Twist()
+            cmd_vel.linear.x = action[0] * 0.5  # Scale to max linear velocity
+            cmd_vel.angular.z = action[1] * 1.5  # Scale to max angular velocity
+            self.pub_cmd_vel.publish(cmd_vel)
+            rospy.sleep(0.1)  # Time step
+
+            # Update observations
+            self.obs_deque.append(self._get_obs())
+
+        # Return observation without rewards or done signals
+        return np.stack(self.obs_deque), {}, False, {}
+
+    def seed(self, seed=None):
+        np.random.seed(seed)
+
+
+class TurtleBot3Dataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon):
+        # Load data from JSON files
+        train_data, episode_lengths = utils.load_json_episodes(data_dir, num_episodes)
+
+        # Compute start and end of each state-action sequence, handle padding
+        indices = utils.create_sample_indices(
+            episode_lengths=episode_lengths,
             sequence_length=pred_horizon,
-            # add padding such that each timestep in the dataset are seen
-            pad_before=obs_horizon-1,
-            pad_after=action_horizon-1)
+            pad_before=obs_horizon - 1,
+            pad_after=action_horizon - 1
+        )
 
-        # compute statistics and normalized data to [-1,1]
+        # Compute statistics and normalize data to [-1, 1]
         stats = dict()
         normalized_train_data = dict()
         for key, data in train_data.items():
-            stats[key] = get_data_stats(data)
-            normalized_train_data[key] = normalize_data(data, stats[key])
+            stats[key] = utils.get_data_stats(data)
+            normalized_train_data[key] = utils.normalize_data(data, stats[key])
 
         self.indices = indices
         self.stats = stats
@@ -59,16 +126,13 @@ class TurtleBot3StateDataset(torch.utils.data.Dataset):
         self.obs_horizon = obs_horizon
 
     def __len__(self):
-        # all possible segments of the dataset
         return len(self.indices)
 
     def __getitem__(self, idx):
-        # get the start/end indices for this datapoint
-        buffer_start_idx, buffer_end_idx, \
-            sample_start_idx, sample_end_idx = self.indices[idx]
+        buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
 
-        # get normalized data using these indices
-        nsample = sample_sequence(
+        # Get normalized data using these indices
+        nsample = utils.sample_sequence(
             train_data=self.normalized_train_data,
             sequence_length=self.pred_horizon,
             buffer_start_idx=buffer_start_idx,
@@ -77,8 +141,167 @@ class TurtleBot3StateDataset(torch.utils.data.Dataset):
             sample_end_idx=sample_end_idx
         )
 
-        # discard unused observations
-        nsample['obs'] = nsample['obs'][:self.obs_horizon,:]
+        # Discard unused observations
+        nsample['obs'] = nsample['obs'][:self.obs_horizon, :]
         return nsample
-    
-    
+
+# Example usage:
+data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'  # Replace with your JSON directory
+num_episodes = 25
+pred_horizon = 10
+obs_horizon = 5
+action_horizon = 5
+
+dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon)
+# print(dataset.normalized_train_data['obs'].shape)
+
+dataloader = torch.utils.data.DataLoader(
+    dataset, 
+    batch_size=256, 
+    num_workers=1,
+    shuffle=True,
+    pin_memory=True,
+    persistent_workers=True)
+
+
+batch = next(iter(dataloader))
+print("batch['obs'].shape:", batch['obs'].shape)
+print("batch['action'].shape", batch['action'].shape)
+
+# observation and action dimensions
+obs_dim = 3
+action_dim = 2
+
+# create network object
+noise_pred_net = unet.ConditionalUnet1D(
+    input_dim=action_dim,
+    global_cond_dim=obs_dim*obs_horizon
+)
+
+# example inputs
+noised_action = torch.randn((1, pred_horizon, action_dim))
+obs = torch.zeros((1, obs_horizon, obs_dim))
+diffusion_iter = torch.zeros((1,))
+
+# the noise prediction network
+# takes noisy action, diffusion iteration and observation as input
+# predicts the noise added to action
+noise = noise_pred_net(
+    sample=noised_action,
+    timestep=diffusion_iter,
+    global_cond=obs.flatten(start_dim=1))
+
+# illustration of removing noise
+# the actual noise removal is performed by NoiseScheduler
+# and is dependent on the diffusion noise schedule
+denoised_action = noised_action - noise
+
+# for this demo, we use DDPMScheduler with 100 diffusion iterations
+num_diffusion_iters = 100
+noise_scheduler = DDPMScheduler(
+    num_train_timesteps=num_diffusion_iters,
+    # the choise of beta schedule has big impact on performance
+    # we found squared cosine works the best
+    beta_schedule='squaredcos_cap_v2',
+    # clip output to [-1,1] to improve stability
+    clip_sample=True,
+    # our network predicts noise (instead of denoised action)
+    prediction_type='epsilon'
+)
+
+# device transfer
+device = torch.device('cuda')
+_ = noise_pred_net.to(device)
+
+num_epochs = 100
+
+# Exponential Moving Average
+# accelerates training and improves stability
+# holds a copy of the model weights
+ema = EMAModel(
+    parameters=noise_pred_net.parameters(),
+    power=0.75)
+
+# Standard ADAM optimizer
+# Note that EMA parametesr are not optimized
+optimizer = torch.optim.AdamW(
+    params=noise_pred_net.parameters(),
+    lr=1e-4, weight_decay=1e-6)
+
+# Cosine LR schedule with linear warmup
+lr_scheduler = get_scheduler(
+    name='cosine',
+    optimizer=optimizer,
+    num_warmup_steps=500,
+    num_training_steps=len(dataloader) * num_epochs
+)
+
+with tqdm(range(num_epochs), desc='Epoch') as tglobal:
+    # epoch loop
+    for epoch_idx in tglobal:
+        epoch_loss = list()
+        # batch loop
+        with tqdm(dataloader, desc='Batch', leave=False) as tepoch:
+            for nbatch in tepoch:
+                # data normalized in dataset
+                # device transfer
+                nobs = nbatch['obs'].to(device)
+                naction = nbatch['action'].to(device)
+                B = nobs.shape[0]
+
+                # observation as FiLM conditioning
+                # (B, obs_horizon, obs_dim)
+                obs_cond = nobs[:, :obs_horizon, :].contiguous().view(nobs.size(0), -1).float()
+
+                # (B, obs_horizon * obs_dim)
+                obs_cond = obs_cond.flatten(start_dim=1)
+
+                print(f"Shape of obs_cond (batch): {obs_cond.shape}")
+
+                # sample noise to add to actions
+                noise = torch.randn(naction.shape, device=device)
+
+                # sample a diffusion iteration for each data point
+                timesteps = torch.randint(
+                    0, noise_scheduler.config.num_train_timesteps,
+                    (B,), device=device
+                ).long()
+
+                # add noise to the clean images according to the noise magnitude at each diffusion iteration
+                # (this is the forward diffusion process)
+                noisy_actions = noise_scheduler.add_noise(
+                    naction, noise, timesteps)
+                
+                # Convert tensors to float before passing to the model
+                noisy_actions = noisy_actions.float()
+                obs_cond = obs_cond.float()
+                timesteps = timesteps.float()
+
+                # predict the noise residual
+                noise_pred = noise_pred_net(
+                    noisy_actions, timesteps, global_cond=obs_cond)
+
+                # L2 loss
+                loss = nn.functional.mse_loss(noise_pred, noise)
+
+                # optimize
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                # step lr scheduler every batch
+                # this is different from standard pytorch behavior
+                lr_scheduler.step()
+
+                # update Exponential Moving Average of the model weights
+                ema.step(noise_pred_net.parameters())
+
+                # logging
+                loss_cpu = loss.item()
+                epoch_loss.append(loss_cpu)
+                tepoch.set_postfix(loss=loss_cpu)
+        tglobal.set_postfix(loss=np.mean(epoch_loss))
+
+# Weights of the EMA model
+# is used for inference
+ema_noise_pred_net = noise_pred_net
+ema.copy_to(ema_noise_pred_net.parameters())
