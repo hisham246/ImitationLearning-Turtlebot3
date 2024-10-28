@@ -3,16 +3,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import collections
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 from tqdm.auto import tqdm
-import rospy
-from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
-from sensor_msgs.msg import LaserScan
-import gym
-from gym import spaces
+import os
+from torch.utils.tensorboard import SummaryWriter
 
 import sys
 sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
@@ -20,82 +16,12 @@ sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearn
 import utils
 import unet
 
-class TurtleBot3Env(gym.Env):
-    '''
-    This class defines the Gym environment for the Turtlebot3 navigation using diffusion policy.
-    '''
-    def __init__(self, obs_horizon=2, action_horizon=8):
-        super(TurtleBot3Env, self).__init__()
+# Directory to save TensorBoard logs
+log_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/logs'
+os.makedirs(log_dir, exist_ok=True)
 
-        rospy.init_node('turtlebot3_diffusion_env', anonymous=True)
-
-        # ROS subscribers
-        rospy.Subscriber('/scan', LaserScan, self._laser_callback)
-        rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._pose_callback)
-        
-        # ROS publisher
-        self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-
-        # Observation and action space
-        obs_dim = 363  # 360 laser scans + 3 pose (x, y, theta)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(obs_horizon, obs_dim), dtype=np.float32)
-
-        action_dim = 2  # linear and angular velocities
-        self.action_space = spaces.Box(low=-1, high=1, shape=(action_horizon, action_dim), dtype=np.float32)
-
-        # Parameters
-        self.obs_horizon = obs_horizon
-        self.action_horizon = action_horizon
-
-        # Internal state
-        self.laser_data = np.zeros(360)
-        self.pose = np.zeros(3)  # [x, y, theta]
-        self.obs_deque = collections.deque(maxlen=obs_horizon)
-
-    def _laser_callback(self, data):
-        ranges = np.array(data.ranges)
-        ranges[np.isinf(ranges)] = 3.5  # Replace inf with max range
-        self.laser_data = ranges
-
-    def _pose_callback(self, data):
-        pos = data.pose.pose.position
-        ori = data.pose.pose.orientation
-        theta = 2 * np.arctan2(ori.z, ori.w)  # Convert quaternion to yaw
-        self.pose = [pos.x, pos.y, theta]
-
-    def reset(self):
-        # Reset environment (e.g., using a ROS service for simulation)
-        self.laser_data = np.zeros(360)
-        self.pose = np.zeros(3)
-        self.obs_deque.clear()
-
-        # Fill observation deque with initial observations
-        for _ in range(self.obs_horizon):
-            self.obs_deque.append(self._get_obs())
-
-        return np.stack(self.obs_deque)
-
-    def _get_obs(self):
-        obs = np.concatenate([self.laser_data, self.pose])
-        return obs
-
-    def step(self, actions):
-        # Execute a series of actions in the environment
-        for action in actions:
-            cmd_vel = Twist()
-            cmd_vel.linear.x = action[0] * 0.5  # Scale to max linear velocity
-            cmd_vel.angular.z = action[1] * 1.5  # Scale to max angular velocity
-            self.pub_cmd_vel.publish(cmd_vel)
-            rospy.sleep(0.1)  # Time step
-
-            # Update observations
-            self.obs_deque.append(self._get_obs())
-
-        # Return observation without rewards or done signals
-        return np.stack(self.obs_deque), {}, False, {}
-
-    def seed(self, seed=None):
-        np.random.seed(seed)
+# Initialize TensorBoard writer
+writer = SummaryWriter(log_dir=log_dir)
 
 
 class TurtleBot3Dataset(torch.utils.data.Dataset):
@@ -314,3 +240,12 @@ with tqdm(range(num_epochs), desc='Epoch') as tglobal:
 # is used for inference
 ema_noise_pred_net = noise_pred_net
 ema.copy_to(ema_noise_pred_net.parameters())
+
+# Directory to save the model
+save_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion'
+
+# Save the trained model's state_dict
+torch.save(noise_pred_net.state_dict(), os.path.join(save_dir, 'noise_pred_net.pth'))
+
+# Save the EMA model's state_dict for inference
+torch.save(ema_noise_pred_net.state_dict(), os.path.join(save_dir, 'ema_noise_pred_net.pth'))

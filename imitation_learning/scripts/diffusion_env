@@ -82,15 +82,9 @@ class TurtleBot3Env(gym.Env):
         # Return observation without rewards or done signals
         return np.stack(self.obs_deque), {}, False, {}
 
-    # def render(self, mode='human'):
-    #     pass  # Add visualization if needed
-
-    # def close(self):
-    #     pass
-
     def seed(self, seed=None):
         np.random.seed(seed)
-
+        
 # def test_environment():
 #     # Create the environment
 #     env = TurtleBot3Env(obs_horizon=2, action_horizon=8)
