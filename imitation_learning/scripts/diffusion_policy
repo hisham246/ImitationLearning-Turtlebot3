@@ -169,7 +169,7 @@ print("batch['obs'].shape:", batch['obs'].shape)
 print("batch['action'].shape", batch['action'].shape)
 
 # observation and action dimensions
-obs_dim = 3
+obs_dim = 363
 action_dim = 2
 
 # create network object
@@ -194,6 +194,15 @@ noise = noise_pred_net(
 # illustration of removing noise
 # the actual noise removal is performed by NoiseScheduler
 # and is dependent on the diffusion noise schedule
+
+# Ensure matching shapes between noised_action and noise
+if noised_action.shape[1] != noise.shape[1]:
+    min_len = min(noised_action.shape[1], noise.shape[1])
+    noised_action = noised_action[:, :min_len, :]
+    noise = noise[:, :min_len, :]
+
+# Perform the subtraction
+
 denoised_action = noised_action - noise
 
 # for this demo, we use DDPMScheduler with 100 diffusion iterations
