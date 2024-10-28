@@ -265,7 +265,7 @@ with tqdm(range(num_epochs), desc='Epoch') as tglobal:
                 # (B, obs_horizon * obs_dim)
                 obs_cond = obs_cond.flatten(start_dim=1)
 
-                print(f"Shape of obs_cond (batch): {obs_cond.shape}")
+                # print(f"Shape of obs_cond (batch): {obs_cond.shape}")
 
                 # sample noise to add to actions
                 noise = torch.randn(naction.shape, device=device)
