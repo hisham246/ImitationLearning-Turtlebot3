@@ -8,6 +8,7 @@ from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 from tqdm.auto import tqdm
 import os
+import wandb
 # from torch.utils.tensorboard import SummaryWriter
 
 import sys
@@ -22,6 +23,7 @@ import unet
 
 # # Initialize TensorBoard writer
 # writer = SummaryWriter(log_dir=log_dir)
+
 
 
 class TurtleBot3Dataset(torch.utils.data.Dataset):
@@ -73,9 +75,9 @@ class TurtleBot3Dataset(torch.utils.data.Dataset):
 
 # Example usage:
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'  # Replace with your JSON directory
-num_episodes = 25
+num_episodes = 73
 pred_horizon = 10
-obs_horizon = 1
+obs_horizon = 2
 action_horizon = 5
 
 dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon)
@@ -88,7 +90,6 @@ dataloader = torch.utils.data.DataLoader(
     shuffle=True,
     pin_memory=True,
     persistent_workers=True)
-
 
 batch = next(iter(dataloader))
 print("batch['obs'].shape:", batch['obs'].shape)
@@ -148,7 +149,7 @@ noise_scheduler = DDPMScheduler(
 device = torch.device('cuda')
 _ = noise_pred_net.to(device)
 
-num_epochs = 100
+num_epochs = 200
 
 # Exponential Moving Average
 # accelerates training and improves stability
@@ -170,6 +171,22 @@ lr_scheduler = get_scheduler(
     num_warmup_steps=500,
     num_training_steps=len(dataloader) * num_epochs
 )
+
+# Initialize a WandB project
+
+user = "hisham-khalil"
+project = "turtlebot_diffusion"
+display_name = "experiment-2024-10-31"
+config={
+    "num_epochs": num_epochs,
+    "batch_size": dataloader.batch_size,
+    "learning_rate": 1e-4,
+    "weight_decay": 1e-6,
+    "scheduler": "cosine"
+    }
+
+wandb.init(entity=user, project=project, name=display_name, config=config)
+
 
 with tqdm(range(num_epochs), desc='Epoch') as tglobal:
     # epoch loop
@@ -230,22 +247,31 @@ with tqdm(range(num_epochs), desc='Epoch') as tglobal:
                 # update Exponential Moving Average of the model weights
                 ema.step(noise_pred_net.parameters())
 
+                wandb.log({"batch_loss": loss.item()})
+
                 # logging
                 loss_cpu = loss.item()
                 epoch_loss.append(loss_cpu)
                 tepoch.set_postfix(loss=loss_cpu)
-        tglobal.set_postfix(loss=np.mean(epoch_loss))
+
+
+        # Log epoch loss to WandB
+        avg_epoch_loss = np.mean(epoch_loss)
+        wandb.log({"epoch_loss": avg_epoch_loss, "epoch": epoch_idx})
+        tglobal.set_postfix(loss=avg_epoch_loss)
 
 # Weights of the EMA model
 # is used for inference
 ema_noise_pred_net = noise_pred_net
 ema.copy_to(ema_noise_pred_net.parameters())
 
+wandb.finish()
+
 # Directory to save the model
 save_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion'
 
 # Save the trained model's state_dict
-torch.save(noise_pred_net.state_dict(), os.path.join(save_dir, 'noise_pred_net.pth'))
+torch.save(noise_pred_net.state_dict(), os.path.join(save_dir, 'noise_pred_net.pt'))
 
 # Save the EMA model's state_dict for inference
-torch.save(ema_noise_pred_net.state_dict(), os.path.join(save_dir, 'ema_noise_pred_net.pth'))
+torch.save(ema_noise_pred_net.state_dict(), os.path.join(save_dir, 'ema_noise_pred_net.pt'))

@@ -212,7 +212,7 @@ noise_scheduler = DDPMScheduler(
 dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon)
 
 # Load model
-ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/ema_noise_pred_net.pth'
+ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/noise_pred_net.pth'
 ema_noise_pred_net = unet.ConditionalUnet1D(
     input_dim=action_dim,  # action_dim
     global_cond_dim=obs_horizon * obs_dim  # obs_horizon * obs_dim

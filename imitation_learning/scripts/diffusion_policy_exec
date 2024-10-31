@@ -17,7 +17,7 @@ import utils
 
 # Define parameters
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
-ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/ema_noise_pred_net.pth'
+ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/noise_pred_net.pth'
 
 obs_horizon = 5
 pred_horizon = 10
@@ -101,6 +101,8 @@ def execute():
         naction = naction.cpu().numpy().squeeze(0)
         action_pred = utils.unnormalize_data(naction, stats['action'])
         action = action_pred[:action_horizon, :]
+
+        print(action)
 
         # Execute the predicted actions
         for act in action:
