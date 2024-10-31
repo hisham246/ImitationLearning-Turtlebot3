@@ -45,7 +45,7 @@ class ImitationNet(nn.Module):
 
     def load(self, path):
         path = os.path.abspath(path)
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, weights_only=True)
         self.load_state_dict(checkpoint['model'])
 
 

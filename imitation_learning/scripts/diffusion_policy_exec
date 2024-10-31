@@ -1,0 +1,131 @@
+#!/usr/bin/env python
+
+import rospy
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from sensor_msgs.msg import LaserScan
+import numpy as np
+import torch
+from tqdm.auto import tqdm
+import collections
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
+
+import unet
+import utils
+
+# Define parameters
+data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
+ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/ema_noise_pred_net.pth'
+
+obs_horizon = 5
+pred_horizon = 10
+action_horizon = 5
+obs_dim = 363
+action_dim = 2
+num_diffusion_iters = 100
+
+
+# Robot state variables
+laser_data = np.zeros(360)
+pose = np.zeros(3)  # [x, y, theta]
+
+# ROS Publishers and Subscribers
+pub_cmd_vel = None
+
+# Load model and scheduler
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+ema_noise_pred_net = unet.ConditionalUnet1D(input_dim=action_dim, global_cond_dim=obs_horizon * obs_dim)
+ema_noise_pred_net.load_state_dict(torch.load(ckpt_path, map_location=device, weights_only=True))
+ema_noise_pred_net.to(device)
+ema_noise_pred_net.eval()
+
+noise_scheduler = DDPMScheduler(num_train_timesteps=100, beta_schedule='squaredcos_cap_v2', clip_sample=True, prediction_type='epsilon')
+
+# Load dataset stats for normalization
+dataset = utils.TurtleBot3Dataset(data_dir, num_episodes=5, pred_horizon=pred_horizon, obs_horizon=obs_horizon, action_horizon=action_horizon)
+stats = dataset.stats
+
+# Callback functions
+def laser_callback(data):
+    global laser_data
+    ranges = np.array(data.ranges)
+    ranges[np.isinf(ranges)] = 3.5  # Replace infinity with max range
+    laser_data = ranges
+
+def pose_callback(data):
+    global pose
+    pos = data.pose.pose.position
+    ori = data.pose.pose.orientation
+    theta = 2 * np.arctan2(ori.z, ori.w)  # Convert quaternion to yaw
+    pose = [pos.x, pos.y, theta]
+
+# Normalize observations based on dataset stats
+def normalize_obs(obs):
+    return utils.normalize_data(obs, stats['obs'])
+
+# Main execution function
+def execute():
+    global pose, laser_data
+
+    rate = rospy.Rate(10)  # Run at 10Hz
+    obs_deque = collections.deque(maxlen=obs_horizon)
+    
+    # Initialize deque with initial observations
+    initial_obs = np.concatenate([pose, laser_data])
+    for _ in range(obs_horizon):
+        obs_deque.append(initial_obs)
+
+    print('Starting policy execution.')
+    while not rospy.is_shutdown():
+        # Stack last observations and normalize
+        obs_seq = np.stack(obs_deque).reshape(-1, obs_dim)
+        nobs = normalize_obs(obs_seq)
+        nobs = torch.from_numpy(nobs).unsqueeze(0).to(device, dtype=torch.float32)
+        
+        # Prepare input for model
+        obs_cond = nobs.flatten(start_dim=1)
+        
+        # Sample initial noise and perform denoising
+        noisy_action = torch.randn((1, pred_horizon, action_dim), device=device)
+        naction = noisy_action
+        noise_scheduler.set_timesteps(num_diffusion_iters)
+
+        with torch.no_grad():
+            for k in noise_scheduler.timesteps:
+                noise_pred = ema_noise_pred_net(sample=naction, timestep=k, global_cond=obs_cond)
+                naction = noise_scheduler.step(model_output=noise_pred, timestep=k, sample=naction).prev_sample
+        
+        # Unnormalize and extract action sequence
+        naction = naction.cpu().numpy().squeeze(0)
+        action_pred = utils.unnormalize_data(naction, stats['action'])
+        action = action_pred[:action_horizon, :]
+
+        # Execute the predicted actions
+        for act in action:
+            cmd_vel = Twist()
+            cmd_vel.linear.x = act[0]
+            cmd_vel.angular.z = act[1]
+            pub_cmd_vel.publish(cmd_vel)
+
+            rospy.sleep(0.1)  # Step duration
+
+            # Update deque with new observation
+            current_obs = np.concatenate([pose, laser_data])
+            obs_deque.append(current_obs)
+
+        rate.sleep()
+
+if __name__ == "__main__":
+    rospy.init_node('diffusion_policy_exec', anonymous=True)
+
+    # ROS publishers and subscribers
+    pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+    rospy.Subscriber('/scan', LaserScan, laser_callback)
+    rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, pose_callback)
+
+    try:
+        execute()
+    except rospy.ROSInterruptException:
+        pass

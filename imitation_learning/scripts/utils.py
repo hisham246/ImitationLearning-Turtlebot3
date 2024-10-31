@@ -1,6 +1,54 @@
 import numpy as np
 import os
 import json
+import torch
+
+class TurtleBot3Dataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon):
+        # Load data from JSON files
+        train_data, episode_lengths = load_json_episodes(data_dir, num_episodes)
+
+        # Compute start and end of each state-action sequence, handle padding
+        indices = create_sample_indices(
+            episode_lengths=episode_lengths,
+            sequence_length=pred_horizon,
+            pad_before=obs_horizon - 1,
+            pad_after=action_horizon - 1
+        )
+
+        # Compute statistics and normalize data to [-1, 1]
+        stats = dict()
+        normalized_train_data = dict()
+        for key, data in train_data.items():
+            stats[key] = get_data_stats(data)
+            normalized_train_data[key] = normalize_data(data, stats[key])
+
+        self.indices = indices
+        self.stats = stats
+        self.normalized_train_data = normalized_train_data
+        self.pred_horizon = pred_horizon
+        self.action_horizon = action_horizon
+        self.obs_horizon = obs_horizon
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
+
+        # Get normalized data using these indices
+        nsample = sample_sequence(
+            train_data=self.normalized_train_data,
+            sequence_length=self.pred_horizon,
+            buffer_start_idx=buffer_start_idx,
+            buffer_end_idx=buffer_end_idx,
+            sample_start_idx=sample_start_idx,
+            sample_end_idx=sample_end_idx
+        )
+
+        # Discard unused observations
+        nsample['obs'] = nsample['obs'][:self.obs_horizon, :]
+        return nsample
 
 def quaternion_to_yaw(z, w):
     """

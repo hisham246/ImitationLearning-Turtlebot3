@@ -122,8 +122,8 @@ if __name__=='__main__':
 
 	# add ROS subscribers and publishers
 	rospy.Subscriber("scan", LaserScan, laserCallback)
-	rospy.Subscriber("odom", Odometry, odomCallback)
-	rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, amclCallback)
+	rospy.Subscriber("/odom", Odometry, odomCallback)
+	rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, amclCallback)
 	rospy.Subscriber("/cmd_vel_temp", Twist, expertCmdCallback)
 	pub_reset = rospy.Publisher("reset_robot_pos", Bool, queue_size=10)
 	pub_cmd = rospy.Publisher("/cmd_vel", Twist, queue_size=10)

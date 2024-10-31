@@ -7,7 +7,74 @@ from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
 from sensor_msgs.msg import LaserScan
 import numpy as np
 import collections
+import os
+import torch
+from tqdm.auto import tqdm
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from gazebo_msgs.srv import SetModelState
+from gazebo_msgs.msg import ModelState
 
+
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
+
+import unet
+import utils
+
+# Define dataset parameters
+data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
+num_episodes = 5
+pred_horizon = 10
+obs_horizon = 5
+action_horizon = 5
+
+class TurtleBot3Dataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon):
+        # Load data from JSON files
+        train_data, episode_lengths = utils.load_json_episodes(data_dir, num_episodes)
+
+        # Compute start and end of each state-action sequence, handle padding
+        indices = utils.create_sample_indices(
+            episode_lengths=episode_lengths,
+            sequence_length=pred_horizon,
+            pad_before=obs_horizon - 1,
+            pad_after=action_horizon - 1
+        )
+
+        # Compute statistics and normalize data to [-1, 1]
+        stats = dict()
+        normalized_train_data = dict()
+        for key, data in train_data.items():
+            stats[key] = utils.get_data_stats(data)
+            normalized_train_data[key] = utils.normalize_data(data, stats[key])
+
+        self.indices = indices
+        self.stats = stats
+        self.normalized_train_data = normalized_train_data
+        self.pred_horizon = pred_horizon
+        self.action_horizon = action_horizon
+        self.obs_horizon = obs_horizon
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
+
+        # Get normalized data using these indices
+        nsample = utils.sample_sequence(
+            train_data=self.normalized_train_data,
+            sequence_length=self.pred_horizon,
+            buffer_start_idx=buffer_start_idx,
+            buffer_end_idx=buffer_end_idx,
+            sample_start_idx=sample_start_idx,
+            sample_end_idx=sample_end_idx
+        )
+
+        # Discard unused observations
+        nsample['obs'] = nsample['obs'][:self.obs_horizon, :]
+        return nsample
+    
 class TurtleBot3Env(gym.Env):
     '''
     This class defines the Gym environment for the Turtlebot3 navigation using diffusion policy.
@@ -20,9 +87,10 @@ class TurtleBot3Env(gym.Env):
         # ROS subscribers
         rospy.Subscriber('/scan', LaserScan, self._laser_callback)
         rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._pose_callback)
-        
-        # ROS publisher
+
+        # ROS publishers
         self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+        self.pub_reset_rviz = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=10)
 
         # Observation and action space
         obs_dim = 363  # 360 laser scans + 3 pose (x, y, theta)
@@ -40,6 +108,10 @@ class TurtleBot3Env(gym.Env):
         self.pose = np.zeros(3)  # [x, y, theta]
         self.obs_deque = collections.deque(maxlen=obs_horizon)
 
+        # Service for resetting robot position in Gazebo
+        rospy.wait_for_service('/gazebo/set_model_state')
+        self.set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+
     def _laser_callback(self, data):
         ranges = np.array(data.ranges)
         ranges[np.isinf(ranges)] = 3.5  # Replace inf with max range
@@ -52,39 +124,220 @@ class TurtleBot3Env(gym.Env):
         self.pose = [pos.x, pos.y, theta]
 
     def reset(self):
-        # Reset environment (e.g., using a ROS service for simulation)
-        self.laser_data = np.zeros(360)
-        self.pose = np.zeros(3)
-        self.obs_deque.clear()
+        # Stop the robot's movement by publishing zero velocities
+        cmd_msg = Twist()
+        cmd_msg.linear.x = 0.0
+        cmd_msg.angular.z = 0.0
+        for _ in range(5):  # Publish multiple times to ensure complete stop
+            self.pub_cmd_vel.publish(cmd_msg)
+            rospy.sleep(0.1)
 
-        # Fill observation deque with initial observations
+        # Reset robot position in Gazebo
+        state_msg = ModelState()
+        state_msg.model_name = 'turtlebot3'
+        state_msg.pose.position.x = -6.503
+        state_msg.pose.position.y = -2.422
+        state_msg.pose.orientation.z = -0.77
+        state_msg.pose.orientation.w = -0.63
+        state_msg.twist = Twist()  # Reset all velocities
+
+        try:
+            self.set_model_state(state_msg)
+            rospy.sleep(0.5)  # Allow some time for the reset to take effect
+        except rospy.ServiceException as e:
+            print(f"Failed to reset robot position in Gazebo: {e}")
+
+        # Reset robot position in RViz
+        reset_pose_msg = PoseWithCovarianceStamped()
+        reset_pose_msg.header.frame_id = "map"
+        reset_pose_msg.header.stamp = rospy.Time.now()
+        reset_pose_msg.pose.pose.position.x = -6.503
+        reset_pose_msg.pose.pose.position.y = -2.422
+        reset_pose_msg.pose.pose.orientation.z = -0.77
+        reset_pose_msg.pose.pose.orientation.w = -0.63
+        self.pub_reset_rviz.publish(reset_pose_msg)
+
+        # Wait for new laser scan and pose data
+        rospy.sleep(1.0)  # Allow time for sensor data to update
+
+        # Clear the observation deque and fill with initial observations
+        self.obs_deque.clear()
         for _ in range(self.obs_horizon):
             self.obs_deque.append(self._get_obs())
 
         return np.stack(self.obs_deque)
 
     def _get_obs(self):
-        obs = np.concatenate([self.laser_data, self.pose])
+        obs = np.concatenate([self.pose, self.laser_data])
         return obs
 
-    def step(self, actions):
-        # Execute a series of actions in the environment
-        for action in actions:
-            cmd_vel = Twist()
-            cmd_vel.linear.x = action[0] * 0.5  # Scale to max linear velocity
-            cmd_vel.angular.z = action[1] * 1.5  # Scale to max angular velocity
-            self.pub_cmd_vel.publish(cmd_vel)
-            rospy.sleep(0.1)  # Time step
+    def step(self, action):
+        # Ensure action is a 1D array of shape [2]
+        linear_vel, angular_vel = action
 
-            # Update observations
-            self.obs_deque.append(self._get_obs())
+        # Publish the command velocity
+        cmd_vel = Twist()
+        cmd_vel.linear.x = linear_vel  # Scale to max linear velocity
+        cmd_vel.angular.z = angular_vel  # Scale to max angular velocity
+        self.pub_cmd_vel.publish(cmd_vel)
+        rospy.sleep(0.1)  # Time step
 
-        # Return observation without rewards or done signals
+        # Update observations
+        self.obs_deque.append(self._get_obs())
+
         return np.stack(self.obs_deque), {}, False, {}
 
     def seed(self, seed=None):
         np.random.seed(seed)
-        
+
+# Initialize the model architecture
+obs_dim = 363
+action_dim = 2
+
+# for this demo, we use DDPMScheduler with 100 diffusion iterations
+num_diffusion_iters = 100
+noise_scheduler = DDPMScheduler(
+    num_train_timesteps=num_diffusion_iters,
+    # the choise of beta schedule has big impact on performance
+    # we found squared cosine works the best
+    beta_schedule='squaredcos_cap_v2',
+    # clip output to [-1,1] to improve stability
+    clip_sample=True,
+    # our network predicts noise (instead of denoised action)
+    prediction_type='epsilon'
+)
+
+
+# Initialize dataset
+dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon)
+
+# Load model
+ckpt_path = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion/ema_noise_pred_net.pth'
+ema_noise_pred_net = unet.ConditionalUnet1D(
+    input_dim=action_dim,  # action_dim
+    global_cond_dim=obs_horizon * obs_dim  # obs_horizon * obs_dim
+)
+ema_noise_pred_net.load_state_dict(torch.load(ckpt_path, weights_only=True, map_location='cuda'))
+ema_noise_pred_net.to('cuda')
+ema_noise_pred_net.eval()
+
+# print(ema_noise_pred_net)
+
+# Evaluation settings
+max_steps = 100
+env = TurtleBot3Env(obs_horizon=obs_horizon, action_horizon=action_horizon)
+env.seed(1)
+
+# Get first observation
+obs = env.reset()
+
+# Keep a queue of last obs_horizon steps of observations
+obs_deque = collections.deque([obs])
+
+# Save visualization and rewards
+imgs = []
+rewards = []
+done = False
+step_idx = 0
+
+# Progress bar for evaluation
+with tqdm(total=max_steps, desc="Eval TurtleBot3Env") as pbar:
+    while not done and step_idx < max_steps:
+        B = 1
+
+        # Stack the last obs_horizon observations
+        obs_seq = np.stack(obs_deque).reshape(-1, obs_dim)
+        print(f"obs_seq shape: {obs_seq.shape}")  # Expect [5, 363]
+
+        # Normalize observation using dataset stats
+        nobs = utils.normalize_data(obs_seq, stats=dataset.stats['obs'])
+
+        # Convert to torch tensor and move to device
+        nobs = torch.from_numpy(nobs).to('cuda', dtype=torch.float32)
+
+        # Reshape to match the expected input size of the network
+        # obs_cond = nobs.view(1, obs_horizon * obs_dim)  # [1, 1815]
+
+        # Infer action using the trained model
+        with torch.no_grad():
+            # Initialize action from Gaussian noise
+
+            obs_cond = nobs.unsqueeze(0).flatten(start_dim=1)
+            print(f"obs_cond shape: {obs_cond.shape}, expected: (1, {obs_horizon * obs_dim})")
+
+
+            noisy_action = torch.randn((B, pred_horizon, action_dim), device='cuda')
+            naction = noisy_action
+
+            # Set timesteps for the scheduler
+            noise_scheduler.set_timesteps(num_diffusion_iters)
+
+            # Diffusion denoising loop
+            for k in noise_scheduler.timesteps:
+                # Predict noise residual
+                noise_pred = ema_noise_pred_net(
+                    sample=naction,
+                    timestep=k,
+                    global_cond=obs_cond
+                )
+
+                # Remove noise (inverse diffusion step)
+                naction = noise_scheduler.step(
+                    model_output=noise_pred,
+                    timestep=k,
+                    sample=naction
+                ).prev_sample
+
+        # Unnormalize action
+        naction = naction.detach().cpu().numpy()
+        action_pred = utils.unnormalize_data(naction, stats=dataset.stats['action'])
+
+        # Remove the batch dimension
+        action_pred = action_pred.squeeze(0)  # Now shape should be (10, 2)
+
+        # Debug action_pred shape after squeezing
+        print(f"action_pred shape after squeeze: {action_pred.shape}")
+
+        # Adjust slicing
+        start = obs_horizon - 1
+        end = start + action_horizon
+
+        # Ensure the slicing is within bounds
+        if end > action_pred.shape[0]:
+            end = action_pred.shape[0]
+
+        action = action_pred[start:end, :]
+
+        # Debug action shape and values
+        print(f"Action shape: {action.shape}, Values: {action}")
+
+        # Execute the actions in the environment
+        for act in action:
+            cmd_vel = Twist()
+            cmd_vel.linear.x = act[0]  # Scale to max linear velocity
+            cmd_vel.angular.z = act[1]   # Scale to max angular velocity
+            env.pub_cmd_vel.publish(cmd_vel)
+            rospy.sleep(0.1)  # Time step
+
+            # Update observations
+            obs, reward, done, info = env.step(act)
+
+            # Save observations and rewards
+            obs_deque.append(obs)
+            rewards.append(reward)
+
+            # Update progress bar
+            step_idx += 1
+            pbar.update(1)
+            pbar.set_postfix(reward=reward)
+
+            if done or step_idx >= max_steps:
+                break
+
+# Print out the maximum reward achieved
+print('Score: ', max(rewards))
+
+
 # def test_environment():
 #     # Create the environment
 #     env = TurtleBot3Env(obs_horizon=2, action_horizon=8)

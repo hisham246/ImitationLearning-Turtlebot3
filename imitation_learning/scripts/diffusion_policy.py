@@ -8,7 +8,7 @@ from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 from tqdm.auto import tqdm
 import os
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 import sys
 sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
@@ -16,12 +16,12 @@ sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearn
 import utils
 import unet
 
-# Directory to save TensorBoard logs
-log_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/logs'
-os.makedirs(log_dir, exist_ok=True)
+# # Directory to save TensorBoard logs
+# log_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/logs'
+# os.makedirs(log_dir, exist_ok=True)
 
-# Initialize TensorBoard writer
-writer = SummaryWriter(log_dir=log_dir)
+# # Initialize TensorBoard writer
+# writer = SummaryWriter(log_dir=log_dir)
 
 
 class TurtleBot3Dataset(torch.utils.data.Dataset):
@@ -75,7 +75,7 @@ class TurtleBot3Dataset(torch.utils.data.Dataset):
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'  # Replace with your JSON directory
 num_episodes = 25
 pred_horizon = 10
-obs_horizon = 5
+obs_horizon = 1
 action_horizon = 5
 
 dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon)
