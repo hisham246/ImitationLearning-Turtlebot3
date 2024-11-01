@@ -1,2 +1,214 @@
 #!/usr/bin/env python
 
+import rospy
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from sensor_msgs.msg import LaserScan
+import collections
+import torch
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from tqdm.auto import tqdm
+
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
+
+
+from policy.transformer_for_diffusion import TransformerForDiffusion
+from policy.diffusion_transformer import DiffusionTransformerLowdimPolicy
+from policy.normalizer import LinearNormalizer
+import policy.utils_transformer as utils
+import numpy as np
+
+# Define parameters
+data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
+ckpt_path = '/home/hisham246/uwaterloo/ME780/tb3_diffusion_models/diffusion_transformer_policy.pt'
+
+class TurtleBot3Dataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, num_episodes, pred_horizon, obs_horizon, action_horizon):
+        # Load data from JSON files
+        train_data, episode_lengths = utils.load_json_episodes(data_dir, num_episodes)
+        
+        # Verify keys in train_data
+        required_keys = ['obs', 'action']
+        missing_keys = [key for key in required_keys if key not in train_data]
+        if missing_keys:
+            raise KeyError(f"Missing required keys in train_data: {missing_keys}")
+
+        # Initialize and fit the normalizer on obs and action data
+        self.normalizer = LinearNormalizer()
+        self.normalizer.fit({'obs': train_data['obs'], 'action': train_data['action']}, mode='limits')
+
+        # Normalize the loaded data
+        self.normalized_train_data = self.normalizer.normalize(train_data)
+
+        # Generate sampling indices
+        self.indices = utils.create_sample_indices(
+            episode_lengths=episode_lengths,
+            sequence_length=pred_horizon,
+            pad_before=obs_horizon - 1,
+            pad_after=action_horizon - 1
+        )
+
+        self.pred_horizon = pred_horizon
+        self.obs_horizon = obs_horizon
+        self.action_horizon = action_horizon
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
+
+        # Extract normalized sequences
+        nsample = utils.sample_sequence(
+            train_data=self.normalized_train_data,
+            sequence_length=self.pred_horizon,
+            buffer_start_idx=buffer_start_idx,
+            buffer_end_idx=buffer_end_idx,
+            sample_start_idx=sample_start_idx,
+            sample_end_idx=sample_end_idx
+        )
+
+        # Trim observations
+        nsample['obs'] = nsample['obs'][:self.obs_horizon, :]
+        return nsample
+
+
+obs_horizon = 1
+pred_horizon = 10
+action_horizon = 5
+obs_dim = 363
+action_dim = 2
+num_diffusion_iters = 100
+
+# Robot state variables
+laser_data = np.zeros(360)
+pose = np.zeros(3)  # [x, y, theta]
+
+# ROS Publishers and Subscribers
+pub_cmd_vel = None
+
+# Load model and scheduler
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+transformer_model = TransformerForDiffusion(
+    input_dim=action_dim,
+    output_dim=action_dim,
+    horizon=pred_horizon,
+    n_obs_steps=obs_horizon,
+    cond_dim=obs_dim * obs_horizon,  
+    n_layer=12,
+    n_head=12,
+    n_emb=768,
+    p_drop_emb=0.1,
+    p_drop_attn=0.1,
+    causal_attn=False,
+    time_as_cond=True,
+    obs_as_cond=True
+)
+
+# Initialize noise scheduler and load policy
+noise_scheduler = DDPMScheduler(num_train_timesteps=100, beta_schedule='squaredcos_cap_v2', clip_sample=True, prediction_type='epsilon')
+policy = DiffusionTransformerLowdimPolicy(
+    model=transformer_model,
+    noise_scheduler=noise_scheduler,
+    horizon=pred_horizon,
+    obs_dim=obs_dim,
+    action_dim=action_dim,
+    n_action_steps=action_horizon,
+    n_obs_steps=obs_horizon,
+    obs_as_cond=True,
+    pred_action_steps_only=False
+)
+policy.load_state_dict(torch.load(ckpt_path, map_location=device, weights_only=True))
+policy.to(device)
+policy.eval()
+
+# Load dataset stats for normalization
+dataset = TurtleBot3Dataset(data_dir, num_episodes=5, pred_horizon=pred_horizon, obs_horizon=obs_horizon, action_horizon=action_horizon)
+normalizer = LinearNormalizer()
+normalizer.fit({'obs': dataset.normalized_train_data['obs'], 'action': dataset.normalized_train_data['action']})
+policy.set_normalizer(normalizer)
+
+# Callback functions
+def laser_callback(data):
+    global laser_data
+    ranges = np.array(data.ranges)
+    ranges[np.isinf(ranges)] = 3.5  # Replace infinity with max range
+    laser_data = ranges
+
+def pose_callback(data):
+    global pose
+    pos = data.pose.pose.position
+    ori = data.pose.pose.orientation
+    theta = 2 * np.arctan2(ori.z, ori.w)  # Convert quaternion to yaw
+    pose = [pos.x, pos.y, theta]
+
+# Main execution function
+def execute():
+    global pose, laser_data
+
+    rate = rospy.Rate(10)  # Run at 10Hz
+    obs_deque = collections.deque(maxlen=obs_horizon)
+    
+    # Initialize deque with initial observations
+    initial_obs = np.concatenate([pose, laser_data])
+    for _ in range(obs_horizon):
+        obs_deque.append(initial_obs)
+
+    print('Starting policy execution.')
+    while not rospy.is_shutdown():
+        # Stack last observations and normalize
+        obs_seq = np.stack(obs_deque).reshape(-1, obs_dim)
+        nobs = normalizer.normalize({'obs': obs_seq})['obs']
+        nobs = nobs.unsqueeze(0).to(device, dtype=torch.float32)
+        
+        # Prepare input for model
+        obs_cond = nobs.flatten(start_dim=1)
+        obs_cond = obs_cond.unsqueeze(1)
+
+        print(obs_cond.shape)
+        # obs_cond = nobs.view(nobs.size(0), -1)
+        
+        # Sample initial noise and perform denoising
+        noisy_action = torch.randn((1, pred_horizon, action_dim), device=device)
+        naction = noisy_action
+        noise_scheduler.set_timesteps(num_diffusion_iters)
+
+        with torch.no_grad():
+            for k in noise_scheduler.timesteps:
+                noise_pred = policy.model(sample=naction, timestep=k, cond=obs_cond)
+                naction = noise_scheduler.step(model_output=noise_pred, timestep=k, sample=naction).prev_sample
+        
+        # Unnormalize and extract action sequence
+        naction = naction.cpu().numpy().squeeze(0)
+        action_pred = normalizer.unnormalize({'action': naction})['action']
+        action = action_pred[:action_horizon, :]
+
+        print("Executing action:", action)
+
+        # Execute the predicted actions
+        for act in action:
+            cmd_vel = Twist()
+            cmd_vel.linear.x = act[0]
+            cmd_vel.angular.z = act[1]
+            pub_cmd_vel.publish(cmd_vel)
+
+            rospy.sleep(0.1)  # Step duration
+
+            # Update deque with new observation
+            current_obs = np.concatenate([pose, laser_data])
+            obs_deque.append(current_obs)
+
+        rate.sleep()
+
+if __name__ == "__main__":
+    rospy.init_node('diffusion_transformer_policy_exec', anonymous=True)
+
+    # ROS publishers and subscribers
+    pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+    rospy.Subscriber('/scan', LaserScan, laser_callback)
+    rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, pose_callback)
+
+    try:
+        execute()
+    except rospy.ROSInterruptException:
+        pass

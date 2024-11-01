@@ -4,6 +4,9 @@ from diffusers.optimization import get_scheduler
 from tqdm.auto import tqdm
 import os
 
+import sys
+sys.path.append('/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts')
+
 from policy.transformer_for_diffusion import TransformerForDiffusion
 from policy.diffusion_transformer import DiffusionTransformerLowdimPolicy
 from policy.normalizer import LinearNormalizer
@@ -15,7 +18,7 @@ import numpy as np
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
 num_episodes = 73
 pred_horizon = 10
-obs_horizon = 1
+obs_horizon = 5
 action_horizon = 5
 obs_dim = 363
 action_dim = 2
