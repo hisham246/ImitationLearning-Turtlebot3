@@ -201,3 +201,20 @@ def _normalize(x, params, forward=True):
     x = x.reshape(-1, scale.shape[0])
     x = x * scale + offset if forward else (x - offset) / scale
     return x.reshape(src_shape)
+
+
+# # Example tensor
+# x = torch.tensor([[0.8582, -0.9859], [0.7813, -0.9242]])
+
+# # Initialize the normalizer and fit the data to create '_default' parameters
+# normalizer = LinearNormalizer()
+# normalizer.fit(x)  # This sets up '_default' in params_dict for non-dict data
+
+# # Normalize and unnormalize
+# normalized_x = normalizer._normalize_impl(x, forward=True)
+# unnormalized_x = normalizer.unnormalize(normalized_x)
+
+# print("Original:", x)
+# print("Normalized:", normalized_x)
+# print("Unnormalized:", unnormalized_x)
+

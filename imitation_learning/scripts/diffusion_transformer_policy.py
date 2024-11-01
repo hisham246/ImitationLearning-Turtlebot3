@@ -13,12 +13,13 @@ from policy.normalizer import LinearNormalizer
 import policy.utils_transformer as utils
 import wandb
 import numpy as np
+from datetime import datetime
 
 # Dataset configuration
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
 num_episodes = 73
 pred_horizon = 10
-obs_horizon = 5
+obs_horizon = 1
 action_horizon = 5
 obs_dim = 363
 action_dim = 2
@@ -196,6 +197,7 @@ for epoch_idx in range(num_epochs):
 wandb.finish()
 
 # Save Model
-save_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/models/diffusion'
+save_dir = '/home/hisham246/uwaterloo/ME780/tb3_diffusion_models'
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 os.makedirs(save_dir, exist_ok=True)
-torch.save(policy.state_dict(), os.path.join(save_dir, 'diffusion_transformer_policy.pt'))
+torch.save(policy.state_dict(), os.path.join(save_dir, f'diffusion_transformer_policy_{timestamp}.pt'))

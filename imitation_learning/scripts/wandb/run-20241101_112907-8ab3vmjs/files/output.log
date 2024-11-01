@@ -1,0 +1,37 @@
+Epoch 1/100:   0%|                                                                                                              | 0/1109 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "diffusion_transformer_policy.py", line 179, in <module>
+    loss = policy.compute_loss(batch_data)  # Directly use policy's compute_loss
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/diffusion_transformer.py", line 250, in compute_loss
+    pred = self.model(noisy_trajectory, timesteps, cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/transformer_for_diffusion.py", line 322, in forward
+    cond_obs_emb = self.cond_obs_emb(cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (640x363 and 1815x768)
+Traceback (most recent call last):
+  File "diffusion_transformer_policy.py", line 179, in <module>
+    loss = policy.compute_loss(batch_data)  # Directly use policy's compute_loss
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/diffusion_transformer.py", line 250, in compute_loss
+    pred = self.model(noisy_trajectory, timesteps, cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/transformer_for_diffusion.py", line 322, in forward
+    cond_obs_emb = self.cond_obs_emb(cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (640x363 and 1815x768)

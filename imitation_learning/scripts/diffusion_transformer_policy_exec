@@ -180,10 +180,15 @@ def execute():
         
         # Unnormalize and extract action sequence
         naction = naction.cpu().numpy().squeeze(0)
+        print(naction)
         action_pred = normalizer.unnormalize({'action': naction})['action']
+        print(normalizer.unnormalize({'action': naction}))
+        
         action = action_pred[:action_horizon, :]
 
-        print("Executing action:", action)
+        print(action)
+
+        # print("Executing action:", action)
 
         # Execute the predicted actions
         for act in action:
