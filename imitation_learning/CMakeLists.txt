@@ -178,7 +178,8 @@ catkin_install_python(PROGRAMS
    scripts/reset_robot_pos
    scripts/daglearner
    scripts/diffusion_env
-   scripts/diffusion_policy_exec
+   scripts/diffusion_unet_policy_exec
+   scripts/diffusion_transformer_policy_exec
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

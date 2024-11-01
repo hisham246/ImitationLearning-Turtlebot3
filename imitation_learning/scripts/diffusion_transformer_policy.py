@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.optimization import get_scheduler
@@ -14,7 +12,7 @@ import wandb
 import numpy as np
 
 # Dataset configuration
-data_dir = '/home/hisham246/uwaterloo/tb3_data'
+data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
 num_episodes = 73
 pred_horizon = 10
 obs_horizon = 1
