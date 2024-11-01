@@ -271,6 +271,16 @@ class TransformerForDiffusion(ModuleAttrMixin):
         sample: torch.Tensor, 
         timestep: Union[torch.Tensor, float, int], 
         cond: Optional[torch.Tensor]=None, **kwargs):
+        # # Debugging
+        # print("Expected cond dimension:", self.cond_obs_emb.in_features)
+        # print("Received cond shape:", cond.shape if cond is not None else "None")
+
+        # # Ensure `cond` has the correct shape
+        # if cond is not None:
+        #     assert cond.shape[-1] == self.cond_obs_emb.in_features, (
+        #         f"Expected cond to have last dimension {self.cond_obs_emb.in_features}, "
+        #         f"but got {cond.shape[-1]}"
+        #     )
         """
         x: (B,T,input_dim)
         timestep: (B,) or int, diffusion step

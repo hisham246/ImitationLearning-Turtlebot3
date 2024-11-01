@@ -1,0 +1,16 @@
+{"time":"2024-10-31T20:45:18.671372675-04:00","level":"INFO","msg":"using version","core version":"0.18.5"}
+{"time":"2024-10-31T20:45:18.671392283-04:00","level":"INFO","msg":"created symlink","path":"/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/wandb/run-20241031_204518-5buvdl09/logs/debug-core.log"}
+{"time":"2024-10-31T20:45:18.777750919-04:00","level":"INFO","msg":"created new stream","id":"5buvdl09"}
+{"time":"2024-10-31T20:45:18.777799353-04:00","level":"INFO","msg":"stream: started","id":"5buvdl09"}
+{"time":"2024-10-31T20:45:18.777948642-04:00","level":"INFO","msg":"sender: started","stream_id":"5buvdl09"}
+{"time":"2024-10-31T20:45:18.777892814-04:00","level":"INFO","msg":"handler: started","stream_id":{"value":"5buvdl09"}}
+{"time":"2024-10-31T20:45:18.777829792-04:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"5buvdl09"}}
+{"time":"2024-10-31T20:45:19.047163788-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-31T20:45:50.47544193-04:00","level":"INFO","msg":"stream: closing","id":"5buvdl09"}
+{"time":"2024-10-31T20:45:50.475474564-04:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-31T20:45:50.475894716-04:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-31T20:45:51.988275587-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-31T20:45:52.147703613-04:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"5buvdl09"}}
+{"time":"2024-10-31T20:45:52.14777418-04:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"5buvdl09"}}
+{"time":"2024-10-31T20:45:52.147799108-04:00","level":"INFO","msg":"sender: closed","stream_id":"5buvdl09"}
+{"time":"2024-10-31T20:45:52.147874273-04:00","level":"INFO","msg":"stream: closed","id":"5buvdl09"}

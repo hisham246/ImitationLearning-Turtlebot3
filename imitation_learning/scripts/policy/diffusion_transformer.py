@@ -174,11 +174,39 @@ class DiffusionTransformerLowdimPolicy(BaseLowdimPolicy):
                 betas=tuple(betas))
 
     def compute_loss(self, batch):
-        # normalize input
-        assert 'valid_mask' not in batch
+
+        # Normalize input
         nbatch = self.normalizer.normalize(batch)
         obs = nbatch['obs']
         action = nbatch['action']
+
+        # Check shape of obs after normalization
+        # print("Normalized obs shape:", obs.shape)
+        # print("Normalized action shape:", action.shape)
+
+        # # Ensure that all expected keys are in `batch`
+        # assert 'obs' in batch, "Missing 'obs' in batch data"
+        # assert 'action' in batch, "Missing 'action' in batch data"
+
+        # # Normalize input
+        # nbatch = self.normalizer.normalize(batch)
+        
+        # # Debugging - check if normalization worked as expected
+        # if 'obs' not in nbatch or 'action' not in nbatch:
+        #     print("Warning: Normalizer did not return 'obs' or 'action' in normalized batch.")
+        # else:
+        #     print(f"Normalized batch 'obs' shape: {nbatch['obs'].shape}")
+        #     print(f"Normalized batch 'action' shape: {nbatch['action'].shape}")
+
+        # # Proceed with compute_loss as before, using nbatch['obs'] and nbatch['action']
+        # obs = nbatch['obs']
+        # action = nbatch['action']
+
+        # # normalize input
+        # assert 'valid_mask' not in batch
+        # nbatch = self.normalizer.normalize(batch)
+        # obs = nbatch['obs']
+        # action = nbatch['action']
 
         # handle different ways of passing observation
         cond = None

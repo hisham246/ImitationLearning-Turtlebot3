@@ -1,0 +1,16 @@
+{"time":"2024-10-31T20:44:26.679284977-04:00","level":"INFO","msg":"using version","core version":"0.18.5"}
+{"time":"2024-10-31T20:44:26.679316588-04:00","level":"INFO","msg":"created symlink","path":"/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/wandb/run-20241031_204426-ruovaspk/logs/debug-core.log"}
+{"time":"2024-10-31T20:44:26.788141467-04:00","level":"INFO","msg":"created new stream","id":"ruovaspk"}
+{"time":"2024-10-31T20:44:26.788180222-04:00","level":"INFO","msg":"stream: started","id":"ruovaspk"}
+{"time":"2024-10-31T20:44:26.78824577-04:00","level":"INFO","msg":"handler: started","stream_id":{"value":"ruovaspk"}}
+{"time":"2024-10-31T20:44:26.788373028-04:00","level":"INFO","msg":"sender: started","stream_id":"ruovaspk"}
+{"time":"2024-10-31T20:44:26.78837403-04:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"ruovaspk"}}
+{"time":"2024-10-31T20:44:27.096216926-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-31T20:44:27.741129972-04:00","level":"INFO","msg":"stream: closing","id":"ruovaspk"}
+{"time":"2024-10-31T20:44:27.741245146-04:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-31T20:44:27.742026538-04:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-31T20:44:29.166407722-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-31T20:44:29.523656965-04:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"ruovaspk"}}
+{"time":"2024-10-31T20:44:29.523755737-04:00","level":"INFO","msg":"sender: closed","stream_id":"ruovaspk"}
+{"time":"2024-10-31T20:44:29.523724857-04:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"ruovaspk"}}
+{"time":"2024-10-31T20:44:29.523896481-04:00","level":"INFO","msg":"stream: closed","id":"ruovaspk"}

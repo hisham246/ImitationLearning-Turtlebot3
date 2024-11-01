@@ -1,0 +1,8 @@
+{"time":"2024-10-31T20:46:38.65197343-04:00","level":"INFO","msg":"using version","core version":"0.18.5"}
+{"time":"2024-10-31T20:46:38.651994019-04:00","level":"INFO","msg":"created symlink","path":"/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/wandb/run-20241031_204638-b10x6xij/logs/debug-core.log"}
+{"time":"2024-10-31T20:46:38.757250305-04:00","level":"INFO","msg":"created new stream","id":"b10x6xij"}
+{"time":"2024-10-31T20:46:38.757286525-04:00","level":"INFO","msg":"stream: started","id":"b10x6xij"}
+{"time":"2024-10-31T20:46:38.757348615-04:00","level":"INFO","msg":"sender: started","stream_id":"b10x6xij"}
+{"time":"2024-10-31T20:46:38.757332955-04:00","level":"INFO","msg":"handler: started","stream_id":{"value":"b10x6xij"}}
+{"time":"2024-10-31T20:46:38.757315691-04:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"b10x6xij"}}
+{"time":"2024-10-31T20:46:39.030528958-04:00","level":"INFO","msg":"Starting system monitor"}

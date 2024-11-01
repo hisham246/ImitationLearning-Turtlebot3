@@ -1,0 +1,73 @@
+Epoch 1/100:  15%|███████████████                                                                                     | 167/1107 [00:31<02:55,  5.35it/s]
+Traceback (most recent call last):
+  File "scripts/diffusion_policy_transformer.py", line 177, in <module>
+    loss = policy.compute_loss(batch_data)  # Directly use policy's compute_loss
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/diffusion_transformer.py", line 250, in compute_loss
+    pred = self.model(noisy_trajectory, timesteps, cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/transformer_for_diffusion.py", line 342, in forward
+    x = self.decoder(
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 495, in forward
+    output = mod(output, memory, tgt_mask=tgt_mask,
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 887, in forward
+    x = x + self._mha_block(self.norm2(x), memory, memory_mask, memory_key_padding_mask, memory_is_causal)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 909, in _mha_block
+    x = self.multihead_attn(x, mem, mem,
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/activation.py", line 1275, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/functional.py", line 5420, in multi_head_attention_forward
+    q, k, v = _in_projection_packed(query, key, value, in_proj_weight, in_proj_bias)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/functional.py", line 4931, in _in_projection_packed
+    q_proj = linear(q, w_q, b_q)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "scripts/diffusion_policy_transformer.py", line 177, in <module>
+    loss = policy.compute_loss(batch_data)  # Directly use policy's compute_loss
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/diffusion_transformer.py", line 250, in compute_loss
+    pred = self.model(noisy_trajectory, timesteps, cond)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/scripts/policy/transformer_for_diffusion.py", line 342, in forward
+    x = self.decoder(
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 495, in forward
+    output = mod(output, memory, tgt_mask=tgt_mask,
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 887, in forward
+    x = x + self._mha_block(self.norm2(x), memory, memory_mask, memory_key_padding_mask, memory_is_causal)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py", line 909, in _mha_block
+    x = self.multihead_attn(x, mem, mem,
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/modules/activation.py", line 1275, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/functional.py", line 5420, in multi_head_attention_forward
+    q, k, v = _in_projection_packed(query, key, value, in_proj_weight, in_proj_bias)
+  File "/home/hisham246/.local/lib/python3.8/site-packages/torch/nn/functional.py", line 4931, in _in_projection_packed
+    q_proj = linear(q, w_q, b_q)
+KeyboardInterrupt

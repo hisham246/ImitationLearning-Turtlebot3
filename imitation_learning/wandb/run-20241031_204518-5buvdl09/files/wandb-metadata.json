@@ -1,0 +1,43 @@
+{
+  "os":  "Linux-5.15.0-124-generic-x86_64-with-glibc2.29",
+  "python":  "3.8.10",
+  "startedAt":  "2024-11-01T00:45:18.669965Z",
+  "program":  "scripts/diffusion_policy_transformer.py",
+  "codePath":  "imitation_learning/scripts/diffusion_policy_transformer.py",
+  "git":  {
+    "remote":  "https://github.com/hisham246/ImitationLearning-Turtlebot3.git",
+    "commit":  "c265823c0fd52e7ae25a9cf661dc59b535f5c5e3"
+  },
+  "email":  "h2khalil@uwaterloo.ca",
+  "root":  "/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning",
+  "host":  "hisham-Legion-5-Pro",
+  "username":  "hisham246",
+  "executable":  "/usr/bin/python",
+  "codePathLocal":  "scripts/diffusion_policy_transformer.py",
+  "cpu_count":  8,
+  "cpu_count_logical":  16,
+  "gpu":  "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "263293960192",
+      "used":  "40116994048"
+    }
+  },
+  "memory":  {
+    "total":  "32790269952"
+  },
+  "cpu":  {
+    "count":  8,
+    "countLogical":  16
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+      "memoryTotal":  "8589934592",
+      "cudaCores":  5888,
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.2"
+}
