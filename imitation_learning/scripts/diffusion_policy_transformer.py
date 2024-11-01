@@ -14,7 +14,7 @@ import wandb
 import numpy as np
 
 # Dataset configuration
-data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
+data_dir = '/home/hisham246/uwaterloo/tb3_data'
 num_episodes = 73
 pred_horizon = 10
 obs_horizon = 1
