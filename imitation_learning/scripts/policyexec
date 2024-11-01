@@ -121,7 +121,7 @@ if __name__=='__main__':
 	rospy.init_node('policyexec', anonymous=True)
 
 	# add ROS subscribers and publishers
-	rospy.Subscriber("scan", LaserScan, laserCallback)
+	rospy.Subscriber("/scan", LaserScan, laserCallback)
 	rospy.Subscriber("/odom", Odometry, odomCallback)
 	rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, amclCallback)
 	rospy.Subscriber("/cmd_vel_temp", Twist, expertCmdCallback)

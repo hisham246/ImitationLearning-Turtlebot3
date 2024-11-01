@@ -16,40 +16,55 @@ from policy.dict_of_tensor_mixin import DictOfTensorMixin
 class LinearNormalizer(DictOfTensorMixin):
     avaliable_modes = ['limits', 'gaussian']
     
+    def __init__(self):
+        super().__init__()
+        self.params_dict = nn.ParameterDict()  # Ensure params_dict is initialized
+
     @torch.no_grad()
     def fit(self,
-        data: Union[Dict, torch.Tensor, np.ndarray, zarr.Array],
-        last_n_dims=1,
-        dtype=torch.float32,
-        mode='limits',
-        output_max=1.,
-        output_min=-1.,
-        range_eps=1e-4,
-        fit_offset=True):
+            data: Union[Dict[str, torch.Tensor], torch.Tensor, np.ndarray, zarr.Array],
+            last_n_dims=1,
+            dtype=torch.float32,
+            mode='limits',
+            output_max=1.,
+            output_min=-1.,
+            range_eps=1e-4,
+            fit_offset=True):
+        """
+        Initializes normalization parameters for each key in `data`.
+        """
         if isinstance(data, dict):
             for key, value in data.items():
-                self.params_dict[key] =  _fit(value, 
+                # Initialize params for each field, like 'obs', 'action', etc.
+                self.params_dict[key] = _fit(
+                    value, 
                     last_n_dims=last_n_dims,
                     dtype=dtype,
                     mode=mode,
                     output_max=output_max,
                     output_min=output_min,
                     range_eps=range_eps,
-                    fit_offset=fit_offset)
+                    fit_offset=fit_offset
+                )
         else:
-            self.params_dict['_default'] = _fit(data, 
-                    last_n_dims=last_n_dims,
-                    dtype=dtype,
-                    mode=mode,
-                    output_max=output_max,
-                    output_min=output_min,
-                    range_eps=range_eps,
-                    fit_offset=fit_offset)
-    
-    def __call__(self, x: Union[Dict, torch.Tensor, np.ndarray]) -> torch.Tensor:
+            # If data is not a dictionary, use '_default' as the key
+            self.params_dict['_default'] = _fit(
+                data, 
+                last_n_dims=last_n_dims,
+                dtype=dtype,
+                mode=mode,
+                output_max=output_max,
+                output_min=output_min,
+                range_eps=range_eps,
+                fit_offset=fit_offset
+            )
+
+    def __call__(self, x: Union[Dict[str, torch.Tensor], torch.Tensor, np.ndarray]) -> torch.Tensor:
         return self.normalize(x)
     
     def __getitem__(self, key: str):
+        if key not in self.params_dict:
+            raise KeyError(f"Key '{key}' not found in normalizer's parameters.")
         return SingleFieldLinearNormalizer(self.params_dict[key])
 
     def __setitem__(self, key: str , value: 'SingleFieldLinearNormalizer'):
@@ -59,24 +74,32 @@ class LinearNormalizer(DictOfTensorMixin):
         if isinstance(x, dict):
             result = dict()
             for key, value in x.items():
+                if key not in self.params_dict:
+                    raise KeyError(f"Key '{key}' not initialized in normalizer's parameters.")
                 params = self.params_dict[key]
                 result[key] = _normalize(value, params, forward=forward)
             return result
         else:
             if '_default' not in self.params_dict:
-                raise RuntimeError("Not initialized")
+                raise RuntimeError("Normalizer is not initialized for non-dict data with '_default' parameters.")
             params = self.params_dict['_default']
             return _normalize(x, params, forward=forward)
 
-    def normalize(self, x: Union[Dict, torch.Tensor, np.ndarray]) -> torch.Tensor:
+    def normalize(self, x: Union[Dict[str, torch.Tensor], torch.Tensor, np.ndarray]) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
+        """
+        Applies normalization to `x` based on the parameters.
+        """
         return self._normalize_impl(x, forward=True)
 
-    def unnormalize(self, x: Union[Dict, torch.Tensor, np.ndarray]) -> torch.Tensor:
+    def unnormalize(self, x: Union[Dict[str, torch.Tensor], torch.Tensor, np.ndarray]) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
+        """
+        Applies unnormalization to `x` based on the parameters.
+        """
         return self._normalize_impl(x, forward=False)
 
     def get_input_stats(self) -> Dict:
         if len(self.params_dict) == 0:
-            raise RuntimeError("Not initialized")
+            raise RuntimeError("Normalizer has not been initialized.")
         if len(self.params_dict) == 1 and '_default' in self.params_dict:
             return self.params_dict['_default']['input_stats']
         
@@ -86,18 +109,21 @@ class LinearNormalizer(DictOfTensorMixin):
                 result[key] = value['input_stats']
         return result
 
-
     def get_output_stats(self, key='_default'):
+        """
+        Returns normalized statistics of input fields. For example, if the input min is 0 and max is 10, 
+        it will return -1 and 1 if normalized between [-1, 1].
+        """
         input_stats = self.get_input_stats()
         if 'min' in input_stats:
-            # no dict
+            # If the input stats dictionary is flat (not nested), normalize directly
             return dict_apply(input_stats, self.normalize)
         
         result = dict()
         for key, group in input_stats.items():
             this_dict = dict()
             for name, value in group.items():
-                this_dict[name] = self.normalize({key:value})[key]
+                this_dict[name] = self.normalize({key: value})[key]
             result[key] = this_dict
         return result
 
@@ -180,7 +206,6 @@ class SingleFieldLinearNormalizer(DictOfTensorMixin):
 
     def __call__(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
         return self.normalize(x)
-
 
 
 def _fit(data: Union[torch.Tensor, np.ndarray, zarr.Array],

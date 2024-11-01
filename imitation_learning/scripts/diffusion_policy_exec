@@ -125,7 +125,7 @@ if __name__ == "__main__":
     # ROS publishers and subscribers
     pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     rospy.Subscriber('/scan', LaserScan, laser_callback)
-    rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, pose_callback)
+    rospy.Subscriber('/odom', PoseWithCovarianceStamped, pose_callback)
 
     try:
         execute()
