@@ -19,7 +19,7 @@ from datetime import datetime
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
 num_episodes = 73
 pred_horizon = 10
-obs_horizon = 1
+obs_horizon = 5
 action_horizon = 5
 obs_dim = 363
 action_dim = 2
@@ -92,7 +92,7 @@ dataset = TurtleBot3Dataset(data_dir, num_episodes, pred_horizon, obs_horizon, a
 
 
 normalizer = LinearNormalizer()
-data_to_fit = {'obs': dataset[0]['obs'], 'action': dataset[0]['action']}  # Example; adjust as needed
+data_to_fit = {'obs': dataset[0]['obs'], 'action': dataset[0]['action']}
 normalizer.fit(data_to_fit)
 
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=128, shuffle=True)
