@@ -1,0 +1,7 @@
+Steps to initialize the Adaptive Monte Carlo Localization (amcl_pose) on Turtlebot 4
+1. Start the turtlebot
+2. Launch the navigation stack: ros2 launch turtlebot4_navigation localization.launch.py map:=robohub.yaml use_sim_time:=false
+Map has to be located in the same directory you run this command in on the terminal
+3. Launch rviz to view the robot: ros2 launch turtlebot4_viz view_robot.launch.py
+
+You can now echo the topic amcl_pose
