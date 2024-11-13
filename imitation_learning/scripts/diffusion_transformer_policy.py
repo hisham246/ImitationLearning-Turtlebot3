@@ -18,9 +18,9 @@ from datetime import datetime
 # Dataset configuration
 data_dir = '/home/hisham246/uwaterloo/ME780/turtlebot_ws/src/ImitationLearning-Turtlebot3/imitation_learning/data/diffusion'
 num_episodes = 73
-pred_horizon = 10
-obs_horizon = 5
-action_horizon = 5
+pred_horizon = 5
+obs_horizon = 1
+action_horizon = 3
 obs_dim = 363
 action_dim = 2
 
@@ -146,7 +146,7 @@ policy.to(device='cuda' if torch.cuda.is_available() else 'cpu')
 
 
 # Training parameters
-num_epochs = 100
+num_epochs = 1000
 optimizer = torch.optim.AdamW(policy.parameters(), lr=1e-4, weight_decay=1e-6)
 lr_scheduler = get_scheduler(
     name='cosine', optimizer=optimizer, num_warmup_steps=500,
@@ -192,7 +192,7 @@ for epoch_idx in range(num_epochs):
     avg_epoch_loss = np.mean(epoch_loss)
 
     print(f'Epoch {epoch_idx+1} Loss: {avg_epoch_loss}')
-    wandb.log({"epoch_loss": epoch_loss, "epoch": epoch_idx})
+    wandb.log({"epoch_loss": avg_epoch_loss, "epoch": epoch_idx})
 
 wandb.finish()
 
